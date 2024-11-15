@@ -19,6 +19,7 @@ class _MyHomePageState extends State<MyHomePage> {
   String selectedProduct = '';
   bool isSearching = false;
   String _searchQuery = '';
+  String productLength = ''; // New property for storing product length
 
   // Controllers for autocomplete
   TextEditingController clientController = TextEditingController();
@@ -288,6 +289,8 @@ class _MyHomePageState extends State<MyHomePage> {
                                             selectedProduct = selection;
                                             isSearchingProduct =
                                                 false; // Stop searching after selection
+                                            productLength =
+                                                "Length: ${selection.length}";
                                           });
                                         },
                                       )
@@ -339,21 +342,18 @@ class _MyHomePageState extends State<MyHomePage> {
 
             // Inventory section only shown after selecting both client and product
             AbsorbPointer(
-              absorbing: !(isClientSelected &&
-                  selectedProduct
-                      .isNotEmpty), // Disable if not both are selected
+              absorbing: !(isClientSelected && selectedProduct.isNotEmpty),
               child: Opacity(
                 opacity: (isClientSelected && selectedProduct.isNotEmpty)
                     ? 1.0
-                    : 0.5, // Dim if not selected
+                    : 0.5,
                 child: Tooltip(
                   message: (isClientSelected && selectedProduct.isNotEmpty)
                       ? ""
                       : "Please select both a client and product",
                   child: Container(
-                    padding: EdgeInsets.all(12.0), // Reduced padding
-                    margin: EdgeInsets.symmetric(
-                        vertical: 8.0), // Reduced vertical margin
+                    padding: EdgeInsets.all(12.0),
+                    margin: EdgeInsets.symmetric(vertical: 8.0),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       border: Border.all(color: Colors.black),
@@ -366,15 +366,42 @@ class _MyHomePageState extends State<MyHomePage> {
                         ),
                       ],
                     ),
-                    height: 120, // Reduced height for the inventory container
-                    child: Center(
-                      child: Text('Inventory (Blank)',
-                          style: TextStyle(fontSize: 14, color: Colors.black)),
-                    ),
+                    height: 120,
+                    child: selectedProduct.isNotEmpty
+                        ? Card(
+                            elevation: 3,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: ListTile(
+                              leading:
+                                  Icon(Icons.inventory, color: Colors.blue),
+                              title: Text(
+                                selectedProduct,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              subtitle: Text(
+                                'Length: ${selectedProduct.length} characters',
+                                style:
+                                    TextStyle(fontSize: 14, color: Colors.grey),
+                              ),
+                            ),
+                          )
+                        : Center(
+                            child: Text(
+                              'Inventory (Blank)',
+                              style:
+                                  TextStyle(fontSize: 14, color: Colors.black),
+                            ),
+                          ),
                   ),
                 ),
               ),
             ),
+
           ],
         ),
       ),
