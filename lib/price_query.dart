@@ -19,6 +19,7 @@ class _MyHomePageState extends State<MyHomePage> {
   String selectedProduct = '';
   bool isSearching = false;
   String _searchQuery = '';
+  String productLength = ''; // New property for storing product length
 
   // Controllers for autocomplete
   TextEditingController clientController = TextEditingController();
@@ -55,27 +56,21 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        toolbarHeight: 5,
+      ),
       body: Padding(
         padding: const EdgeInsets.all(
             5.0), // Reduced padding for overall compactness
         child: Column(
           children: [
-            // Client Container with Autocomplete Search
-            Container(
-              padding: EdgeInsets.all(12.0), // Reduced padding
-              margin: EdgeInsets.symmetric(
-                  vertical: 25.0), // Reduced vertical margin
-              decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border.all(color: Colors.black),
-                borderRadius: BorderRadius.circular(8),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.1),
-                    spreadRadius: 1,
-                    blurRadius: 3,
-                  ),
-                ],
+            // Client InputDecorator with Autocomplete Search
+            InputDecorator(
+              decoration: InputDecoration(
+                labelText: 'Client', // Label for the Client section
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.start,
@@ -86,86 +81,99 @@ class _MyHomePageState extends State<MyHomePage> {
                       Expanded(
                         child: GestureDetector(
                           onTap: () {
-                            setState(() {
-                              // Allow searching again if the client is selected
-                              isSearching = true;
-                              _searchQuery = '';
-                            });
+                            if (!isClientSelected) {
+                              setState(() {
+                                // Allow searching again if the client is not selected
+                                isSearching = true;
+                                _searchQuery = '';
+                              });
+                            }
                           },
-                          child: isSearching
-                              ? Autocomplete<String>(
-                                  optionsBuilder: (TextEditingValue
-                                      textEditingValue) async {
-                                    if (textEditingValue.text.isEmpty) {
-                                      return const Iterable<String>.empty();
-                                    }
+                          child: AbsorbPointer(
+                            absorbing:
+                                isClientSelected, // Disable search if client is selected
+                            child: Opacity(
+                              opacity: isClientSelected
+                                  ? 0.5
+                                  : 1.0, // Adjust opacity if client is selected
+                              child: isSearching
+                                  ? Autocomplete<String>(
+                                      optionsBuilder: (TextEditingValue
+                                          textEditingValue) async {
+                                        if (textEditingValue.text.isEmpty) {
+                                          return const Iterable<String>.empty();
+                                        }
 
-                                    final filteredNames =
-                                        await _fetchFilteredNames(
-                                            textEditingValue.text,
-                                            clientSuggestions);
-                                    final query =
-                                        textEditingValue.text.toLowerCase();
-                                    final suggestions =
-                                        filteredNames.where((name) {
-                                      final nameLower = name.toLowerCase();
-                                      return nameLower.startsWith(query) ||
-                                          nameLower.contains(query);
-                                    }).toList();
+                                        final filteredNames =
+                                            await _fetchFilteredNames(
+                                                textEditingValue.text,
+                                                clientSuggestions);
+                                        final query =
+                                            textEditingValue.text.toLowerCase();
+                                        final suggestions =
+                                            filteredNames.where((name) {
+                                          final nameLower = name.toLowerCase();
+                                          return nameLower.startsWith(query) ||
+                                              nameLower.contains(query);
+                                        }).toList();
 
-                                    suggestions.sort((a, b) {
-                                      final aLower = a.toLowerCase();
-                                      final bLower = b.toLowerCase();
-                                      if (aLower.startsWith(query) &&
-                                          !bLower.startsWith(query)) {
-                                        return -1;
-                                      } else if (!aLower.startsWith(query) &&
-                                          bLower.startsWith(query)) {
-                                        return 1;
-                                      }
-                                      return aLower.compareTo(bLower);
-                                    });
+                                        suggestions.sort((a, b) {
+                                          final aLower = a.toLowerCase();
+                                          final bLower = b.toLowerCase();
+                                          if (aLower.startsWith(query) &&
+                                              !bLower.startsWith(query)) {
+                                            return -1;
+                                          } else if (!aLower
+                                                  .startsWith(query) &&
+                                              bLower.startsWith(query)) {
+                                            return 1;
+                                          }
+                                          return aLower.compareTo(bLower);
+                                        });
 
-                                    return suggestions;
-                                  },
-                                  displayStringForOption: (String option) =>
-                                      option,
-                                  fieldViewBuilder: (context, controller,
-                                      focusNode, onFieldSubmitted) {
-                                    return TextField(
-                                      controller: controller,
-                                      focusNode: focusNode,
-                                      decoration: InputDecoration(
-                                        hintText: 'Search Client...',
-                                        border: InputBorder.none,
-                                        contentPadding: EdgeInsets.symmetric(
-                                            horizontal: 16.0),
-                                      ),
-                                    );
-                                  },
-                                  onSelected: (String selection) {
-                                    setState(() {
-                                      selectedClient = selection;
-                                      isClientSelected =
-                                          true; // Mark client as selected
-                                      isSearching =
-                                          false; // Stop searching once selected
-                                    });
-                                  },
-                                )
-                              : Row(
-                                  children: [
-                                    Icon(Icons.search,
-                                        color: Colors.black, size: 30),
-                                    SizedBox(width: 8),
-                                    Text(
-                                      selectedClient.isEmpty
-                                          ? ''
-                                          : selectedClient,
-                                      style: TextStyle(fontSize: 16),
+                                        return suggestions;
+                                      },
+                                      displayStringForOption: (String option) =>
+                                          option,
+                                      fieldViewBuilder: (context, controller,
+                                          focusNode, onFieldSubmitted) {
+                                        return TextField(
+                                          controller: controller,
+                                          focusNode: focusNode,
+                                          decoration: InputDecoration(
+                                            hintText: 'Search Client...',
+                                            border: InputBorder.none,
+                                            contentPadding:
+                                                EdgeInsets.symmetric(
+                                                    horizontal: 16.0),
+                                          ),
+                                        );
+                                      },
+                                      onSelected: (String selection) {
+                                        setState(() {
+                                          selectedClient = selection;
+                                          isClientSelected =
+                                              true; // Mark client as selected
+                                          isSearching =
+                                              false; // Stop searching once selected
+                                        });
+                                      },
+                                    )
+                                  : Row(
+                                      children: [
+                                        Icon(Icons.search,
+                                            color: Colors.black, size: 30),
+                                        SizedBox(width: 8),
+                                        Text(
+                                          selectedClient.isEmpty
+                                              ? ''
+                                              : selectedClient,
+                                          style: TextStyle(fontSize: 16),
+                                        ),
+                                      ],
                                     ),
-                                  ],
-                                ),
+                            ),
+                          ),
                         ),
                       ),
                       IconButton(
@@ -175,6 +183,7 @@ class _MyHomePageState extends State<MyHomePage> {
                             selectedClient = '';
                             isClientSelected = false; // Reset client selection
                             isSearching = false; // Reset search state
+                            selectedProduct = '';
                           });
                         },
                         icon: Icon(Icons.refresh_sharp, color: Colors.black),
@@ -185,7 +194,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 ],
               ),
             ),
-
+          const Divider(),
             // Product Container with Autocomplete Search (same as client)
             AbsorbPointer(
               absorbing:
@@ -198,21 +207,12 @@ class _MyHomePageState extends State<MyHomePage> {
                   message: isClientSelected
                       ? ""
                       : "Please select a client first", // Tooltip for user guidance
-                  child: Container(
-                    padding: EdgeInsets.all(12.0), // Reduced padding
-                    margin: EdgeInsets.symmetric(
-                        vertical: 8.0), // Reduced vertical margin
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      border: Border.all(color: Colors.black),
-                      borderRadius: BorderRadius.circular(8),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.grey.withOpacity(0.1),
-                          spreadRadius: 1,
-                          blurRadius: 3,
-                        ),
-                      ],
+                  child: InputDecorator(
+                    decoration: InputDecoration(
+                      labelText: 'Product', // Label for the Client section
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -288,6 +288,8 @@ class _MyHomePageState extends State<MyHomePage> {
                                             selectedProduct = selection;
                                             isSearchingProduct =
                                                 false; // Stop searching after selection
+                                            productLength =
+                                                "Length: ${selection.length}";
                                           });
                                         },
                                       )
@@ -337,40 +339,57 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
             ),
 
+            const Divider(),
+
             // Inventory section only shown after selecting both client and product
             AbsorbPointer(
-              absorbing: !(isClientSelected &&
-                  selectedProduct
-                      .isNotEmpty), // Disable if not both are selected
+              absorbing: !(isClientSelected && selectedProduct.isNotEmpty),
               child: Opacity(
                 opacity: (isClientSelected && selectedProduct.isNotEmpty)
                     ? 1.0
-                    : 0.5, // Dim if not selected
+                    : 0.5,
                 child: Tooltip(
                   message: (isClientSelected && selectedProduct.isNotEmpty)
                       ? ""
                       : "Please select both a client and product",
-                  child: Container(
-                    padding: EdgeInsets.all(12.0), // Reduced padding
-                    margin: EdgeInsets.symmetric(
-                        vertical: 8.0), // Reduced vertical margin
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      border: Border.all(color: Colors.black),
-                      borderRadius: BorderRadius.circular(8),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.grey.withOpacity(0.1),
-                          spreadRadius: 1,
-                          blurRadius: 3,
-                        ),
-                      ],
+                  child: InputDecorator(
+                    decoration: InputDecoration(
+                      labelText: 'Inventory', // Label for the Client section
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
-                    height: 120, // Reduced height for the inventory container
-                    child: Center(
-                      child: Text('Inventory (Blank)',
-                          style: TextStyle(fontSize: 14, color: Colors.black)),
-                    ),
+                    
+                    child: selectedProduct.isNotEmpty
+                        ? Card(
+                            elevation: 3,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: ListTile(
+                              leading:
+                                  Icon(Icons.inventory, color: Colors.blue),
+                              title: Text(
+                                selectedProduct,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              subtitle: Text(
+                                'Length: ${selectedProduct.length} characters',
+                                style:
+                                    TextStyle(fontSize: 14, color: Colors.grey),
+                              ),
+                            ),
+                          )
+                        : Center(
+                            child: Text(
+                              'Inventory (Blank)',
+                              style:
+                                  TextStyle(fontSize: 14, color: Colors.black),
+                            ),
+                          ),
                   ),
                 ),
               ),
