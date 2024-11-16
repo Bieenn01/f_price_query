@@ -1,0 +1,133 @@
+import 'package:mysql1/mysql1.dart';
+
+class Mysql {
+  static String host = '34.143.206.185',
+      user = 'root',
+      password = 'alpha',
+      db = 'harlem';
+  static int port = 3306;
+
+  Mysql();
+
+  // Create a single connection instance
+  Future<MySqlConnection> getConnection() async {
+    var settings = new ConnectionSettings(
+      host: host,
+      port: port,
+      user: user,
+      password: password,
+      db: db,
+    );
+    return await MySqlConnection.connect(settings);
+  }
+
+  // Fetch user data based on ID
+  Future<Map<String, dynamic>> getUserData(int userId) async {
+    var conn = await getConnection();
+    
+    var results = await conn.query(
+      'SELECT name, email, age FROM users WHERE id = ?',
+      [userId],
+    );
+
+    Map<String, dynamic> userData = {};
+    
+    if (results.isNotEmpty) {
+      var row = results.first;
+      userData = {
+        'name': row[0],
+        'email': row[1],
+        'age': row[2],
+      };
+    }
+
+    await conn.close();
+    return userData;
+  }
+
+  // Fetch all clients from the database
+  Future<List<String>> getClients() async {
+    var conn = await getConnection();
+    var results = await conn.query(
+        'SELECT name FROM harlem_client.client ORDER BY name');
+    List<String> clients = [];
+    for (var row in results) {
+      clients.add(row[0] as String); // Assuming 'name' is the first column
+    }
+    await conn.close();
+    return clients;
+  }
+
+  // Fetch all products from the database
+  Future<List<String>> getProducts() async {
+    var conn = await getConnection();
+    var results = await conn.query(
+        'SELECT name FROM harlem_products.product_main ORDER BY name');
+    List<String> products = [];
+    for (var row in results) {
+      products.add(row[0] as String); // Assuming 'name' is the first column
+    }
+    await conn.close();
+    return products;
+  }
+
+  // Fetch inventory data for a specific client and product
+Future<List<Map<String, dynamic>>> getInventoryForProductAndClient(
+      String clientName, String productName) async {
+    var conn = await getConnection();
+
+    var results = await conn.query(
+      '''
+    SELECT p.name, 
+           i.contents_box, 
+           i.expiry_date, 
+           pr.price_box, 
+           f.path, 
+           i.onhand_quantity_pcs, 
+           i.contents_case
+    FROM harlem_inventory.inventory i
+    LEFT JOIN harlem_products.product_main p ON p.id=i.product_id
+    LEFT JOIN harlem_price.price pr ON pr.inventory_id=i.id
+    LEFT JOIN harlem_ftp.inventory f ON f.inventory_id=i.id
+    WHERE i.product_id = (SELECT id FROM harlem_products.product_main WHERE name = ?)
+      AND i.mainlocation_id = (SELECT id FROM harlem_inventory.mainlocation WHERE name = 'RGA')
+      AND EXISTS (SELECT 1 FROM harlem_client.client c WHERE c.name = ?)
+      AND pr.class_id = (SELECT class_id FROM harlem_client.client WHERE name = ?)
+    ORDER BY i.expiry_date, i.receive_datetime
+    ''',
+      [
+        productName,
+        clientName,
+        clientName
+      ], // Pass the clientName twice as needed
+    );
+
+    List<Map<String, dynamic>> inventoryData = [];
+    for (var row in results) {
+      // Print the row data for debugging
+      print("Row data: ");
+      print("Product Name: ${row[0]}");
+      print("Contents Box: ${row[1]}");
+      print("Expiry Date: ${row[2]}");
+      print("Price per Box: ${row[3]}");
+      print("Path: ${row[4]}");
+      print("Onhand Quantity: ${row[5]}");
+      print("Contents Case: ${row[6]}");
+
+      inventoryData.add({
+        'product_name': row[0],
+        'contents_box': row[1],
+        'expiry_date': row[2],
+        'price_box': row[3],
+        'path': row[4],
+        'onhand_quantity_pcs': row[5],
+        'contents_case': row[6],
+      });
+    }
+
+    await conn.close();
+    return inventoryData;
+  }
+
+
+}
