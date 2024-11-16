@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:mysql1/mysql1.dart'; // Required for MySQL operations
 import 'mysql.dart'; // Import the Mysql class
+import 'package:intl/intl.dart'; // Import the intl package for date formatting
 
-class MyHomePage extends StatefulWidget {
+class PriceQuery extends StatefulWidget {
   @override
-  _MyHomePageState createState() => _MyHomePageState();
+  _PriceQueryState createState() => _PriceQueryState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class _PriceQueryState extends State<PriceQuery> {
   final Mysql mysql = Mysql(); // Instance of the Mysql class
 
   List<String> clientSuggestions = [];
@@ -52,6 +53,41 @@ class _MyHomePageState extends State<MyHomePage> {
       return option.toLowerCase().contains(query.toLowerCase());
     }).toList();
   }
+
+  // Fetch inventory data based on the selected client and product
+  Future<List<Map<String, dynamic>>> fetchInventoryData(
+      String client, String product) async {
+    try {
+      // Assuming you have a method in Mysql.dart to query inventory by client and product
+      var inventoryData =
+          await mysql.getInventoryForProductAndClient(client, product);
+      return inventoryData;
+    } catch (e) {
+      print('Error fetching inventory: $e');
+      return []; // Return empty list if an error occurs
+    }
+  }
+
+    // Function to format date
+  String formatDate(dynamic dateTime) {
+    try {
+      // If the date is a String, parse it
+      if (dateTime is String) {
+        DateTime parsedDate = DateTime.parse(dateTime);
+        return DateFormat('yyyy-MM-dd').format(parsedDate);
+      } else if (dateTime is DateTime) {
+        // If it's already a DateTime object, format it directly
+        return DateFormat('yyyy-MM-dd').format(dateTime);
+      } else {
+        // If the type is unexpected, return the raw value
+        return dateTime.toString();
+      }
+    } catch (e) {
+      print("Error formatting date: $e");
+      return dateTime.toString(); // Return the original if there's an error
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -359,33 +395,73 @@ class _MyHomePageState extends State<MyHomePage> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    
                     child: selectedProduct.isNotEmpty
-                        ? Card(
-                            elevation: 3,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: ListTile(
-                              leading:
-                                  Icon(Icons.inventory, color: Colors.blue),
-                              title: Text(
-                                selectedProduct,
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              subtitle: Text(
-                                'Length: ${selectedProduct.length} characters',
-                                style:
-                                    TextStyle(fontSize: 14, color: Colors.grey),
-                              ),
-                            ),
+                        ? FutureBuilder<List<Map<String, dynamic>>>(
+                            future: fetchInventoryData(
+                                selectedClient, selectedProduct),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState ==
+                                  ConnectionState.waiting) {
+                                return Center(
+                                    child: CircularProgressIndicator());
+                              }
+
+                              if (snapshot.hasError) {
+                                return Center(
+                                    child:
+                                        Text('Error fetching inventory data.'));
+                              }
+
+                              if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                                return Center(
+                                    child: Text('No inventory found.'));
+                              }
+
+                              var inventoryItems = snapshot.data!;
+
+                              return ListView.builder(
+                                shrinkWrap: true,
+                                itemCount: inventoryItems.length,
+                                itemBuilder: (context, index) {
+                                  var item = inventoryItems[index];
+                                  return Card(
+                                    elevation: 3,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    margin: EdgeInsets.symmetric(vertical: 8),
+                                    child: ExpansionTile(
+                                      title: Text(
+                                        item[
+                                            'product_name'], // Highlighted Product Name
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors
+                                              .blue, // Highlight color for product name
+                                        ),
+                                      ),
+                                      leading: Icon(Icons.inventory,
+                                          color: Colors.blue),
+                                      children: [
+                                        ListTile(
+                                          title: Text(
+                                            'Received on: ${formatDate(item['receive_datetime'])}', // Format the date here
+                                            style: TextStyle(fontSize: 14),
+                                          ),
+                                          subtitle:
+                                              Text('Type: ${item['type']}'),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              );
+                            },
                           )
                         : Center(
                             child: Text(
-                              'Inventory (Blank)',
+                              'Select a product to see inventory.',
                               style:
                                   TextStyle(fontSize: 14, color: Colors.black),
                             ),
@@ -393,7 +469,8 @@ class _MyHomePageState extends State<MyHomePage> {
                   ),
                 ),
               ),
-            ),
+            )
+
           ],
         ),
       ),
