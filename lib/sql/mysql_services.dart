@@ -1,37 +1,20 @@
+import 'package:f_price_query/sql/mysql.dart';
 import 'package:mysql1/mysql1.dart';
 
-class Mysql {
-  static String host = '34.143.206.185',
-      user = 'root',
-      password = 'alpha',
-      db = 'harlem';
-  static int port = 3306;
-
-  Mysql();
-
-  // Create a single connection instance
-  Future<MySqlConnection> getConnection() async {
-    var settings = new ConnectionSettings(
-      host: host,
-      port: port,
-      user: user,
-      password: password,
-      db: db,
-    );
-    return await MySqlConnection.connect(settings);
-  }
+class MysqlService {
+  final Mysql mysql = Mysql();
 
   // Fetch user data based on ID
   Future<Map<String, dynamic>> getUserData(int userId) async {
-    var conn = await getConnection();
-    
+    var conn = await mysql.getConnection();
+
     var results = await conn.query(
       'SELECT name, email, age FROM users WHERE id = ?',
       [userId],
     );
 
     Map<String, dynamic> userData = {};
-    
+
     if (results.isNotEmpty) {
       var row = results.first;
       userData = {
@@ -47,9 +30,9 @@ class Mysql {
 
   // Fetch all clients from the database
   Future<List<String>> getClients() async {
-    var conn = await getConnection();
-    var results = await conn.query(
-        'SELECT name FROM harlem_client.client ORDER BY name');
+    var conn = await mysql.getConnection();
+    var results =
+        await conn.query('SELECT name FROM harlem_client.client ORDER BY name');
     List<String> clients = [];
     for (var row in results) {
       clients.add(row[0] as String); // Assuming 'name' is the first column
@@ -60,9 +43,9 @@ class Mysql {
 
   // Fetch all products from the database
   Future<List<String>> getProducts() async {
-    var conn = await getConnection();
-    var results = await conn.query(
-        'SELECT name FROM harlem_products.product_main ORDER BY name');
+    var conn = await mysql.getConnection();
+    var results = await conn
+        .query('SELECT name FROM harlem_products.product_main ORDER BY name');
     List<String> products = [];
     for (var row in results) {
       products.add(row[0] as String); // Assuming 'name' is the first column
@@ -74,7 +57,7 @@ class Mysql {
   // Fetch inventory data for a specific client and product
   Future<List<Map<String, dynamic>>> getInventoryForProductAndClient(
       String clientName, String productName) async {
-    var conn = await getConnection();
+    var conn = await mysql.getConnection();
 
     String query = '''SELECT i.id, p.name, DATE(i.receive_datetime), i.type 
     FROM harlem_inventory.inventory i
@@ -90,7 +73,6 @@ class Mysql {
     try {
       print("Query String: $query");
 
-      // Execute the query
       var results = await conn.query(query);
 
       List<Map<String, dynamic>> inventoryData = [];
@@ -112,12 +94,11 @@ class Mysql {
     }
   }
 
-   // Fetch detailed inventory data based on id and clientName
+  // Fetch detailed inventory data based on id and clientName
   Future<Map<String, dynamic>> getDetailedInventoryData(
       String inventoryId, String clientName) async {
-    var conn = await getConnection();
+    var conn = await mysql.getConnection();
 
-    // SQL query for detailed inventory info
     String query =
         '''SELECT p.name, i.contents_box, i.expiry_date, pr.price_box, 
                       f.path, i.onhand_quantity_pcs, i.contents_case 
@@ -140,13 +121,13 @@ class Mysql {
       if (results.isNotEmpty) {
         var row = results.first;
         detailedData = {
-          'name': row[0], // Product name
-          'contents_box': row[1], // Contents per box
-          'expiry_date': row[2], // Expiry date
-          'price_box': row[3], // Price per box
-          'path': row[4], // FTP path
-          'onhand_quantity_pcs': row[5], // On hand quantity in pcs
-          'contents_case': row[6], // Contents per case
+          'name': row[0],
+          'contents_box': row[1],
+          'expiry_date': row[2],
+          'price_box': row[3],
+          'path': row[4],
+          'onhand_quantity_pcs': row[5],
+          'contents_case': row[6],
         };
       }
 
@@ -158,6 +139,4 @@ class Mysql {
       return {};
     }
   }
-
-
 }

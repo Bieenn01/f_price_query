@@ -1,0 +1,190 @@
+           AbsorbPointer(
+                absorbing: !(isClientSelected && selectedProduct.isNotEmpty),
+                child: Opacity(
+                  opacity: (isClientSelected && selectedProduct.isNotEmpty)
+                      ? 1.0
+                      : 0.5,
+                  child: Tooltip(
+                    message: (isClientSelected && selectedProduct.isNotEmpty)
+                        ? ""
+                        : "Please select both a client and product",
+                    child: SingleChildScrollView(
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: InputDecorator(
+                          decoration: InputDecoration(
+                            labelText: 'Inventory',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: selectedProduct.isNotEmpty
+                              ? FutureBuilder<List<Map<String, dynamic>>>(
+                                  future: fetchInventoryData(
+                                      selectedClient, selectedProduct),
+                                  builder: (context, snapshot) {
+                                    if (snapshot.connectionState ==
+                                        ConnectionState.active) {
+                                      return Center(
+                                          child: CircularProgressIndicator());
+                                    }
+
+                                    if (snapshot.hasError) {
+                                      return Center(
+                                          child: Text(
+                                              'Error fetching inventory data.'));
+                                    }
+
+                                    if (!snapshot.hasData ||
+                                        snapshot.data!.isEmpty) {
+                                      return Center(
+                                          child: Text('No inventory found.'));
+                                    }
+
+                                    var inventoryItems = snapshot.data!;
+
+                                    return ListView.builder(
+                                      shrinkWrap: true,
+                                      physics: NeverScrollableScrollPhysics(),
+                                      itemCount: inventoryItems.length,
+                                      itemBuilder: (context, index) {
+                                        var item = inventoryItems[index];
+
+                                        return Card(
+                                          elevation: 3,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                          ),
+                                          margin:
+                                              EdgeInsets.symmetric(vertical: 8),
+                                          child: ExpansionTile(
+                                            title: Text(
+                                              item['product_name'],
+                                              style: TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w600,
+                                                color: Colors.blue,
+                                              ),
+                                            ),
+                                            leading: Icon(Icons.inventory,
+                                                color: Colors.blue),
+                                            onExpansionChanged:
+                                                (expanded) async {
+                                              if (expanded) {
+                                                print(
+                                                    'Tile is opened: ${item['product_name']}');
+                                                var inventoryId = item['id'];
+                                                var clientName = selectedClient;
+
+                                                // Fetch detailed data
+                                                var detailedData = await mysql
+                                                    .getDetailedInventoryData(
+                                                        inventoryId,
+                                                        clientName);
+
+                                                if (detailedData.isNotEmpty) {
+                                                  print(
+                                                      'Detailed inventory data for ${item['product_name']}:');
+                                                  print(detailedData);
+                                                } else {
+                                                  print(
+                                                      'No detailed data found.');
+                                                }
+
+                                                setState(() {
+                                                  // Update the item to include detailed data for display
+                                                  item['detailedData'] =
+                                                      detailedData;
+                                                });
+                                              } else {
+                                                print(
+                                                    'Tile is closed: ${item['product_name']}');
+                                              }
+                                            },
+                                            children: [
+                                              Padding(
+                                                padding:
+                                                    const EdgeInsets.all(8.0),
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      'Received on: ${formatDate(item['receive_datetime'])}',
+                                                      style: TextStyle(
+                                                          fontSize: 14),
+                                                    ),
+                                                    SizedBox(height: 6),
+                                                    Text(
+                                                      'Type: ${item['type']}',
+                                                      style: TextStyle(
+                                                          fontSize: 14),
+                                                    ),
+                                                    SizedBox(height: 6),
+                                                    // Check if detailed data is available and display it
+                                                    if (item['detailedData'] !=
+                                                        null) ...[
+                                                      ExpansionTile(
+                                                        title: Text(
+                                                            'Detailed Inventory Data',
+                                                            style: TextStyle(
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold)),
+                                                        leading: Icon(
+                                                            Icons.info_outline,
+                                                            color: Colors.blue),
+                                                        children: [
+                                                          Padding(
+                                                            padding:
+                                                                const EdgeInsets
+                                                                    .all(8.0),
+                                                            child: Column(
+                                                              crossAxisAlignment:
+                                                                  CrossAxisAlignment
+                                                                      .start,
+                                                              children: [
+                                                                Text(
+                                                                    'Product: ${item['detailedData']['name'] ?? 'N/A'}'),
+                                                                Text(
+                                                                    'Contents Box: ${item['detailedData']['contents_box'] ?? 'N/A'}'),
+                                                                Text(
+                                                                    'Expiry Date: ${item['detailedData']['expiry_date'] ?? 'N/A'}'),
+                                                                Text(
+                                                                    'Price Box: ${item['detailedData']['price_box'] ?? 'N/A'}'),
+                                                                Text(
+                                                                    'FTP Path: ${item['detailedData']['path'] ?? 'N/A'}'),
+                                                                Text(
+                                                                    'On-hand Quantity (pcs): ${item['detailedData']['onhand_quantity_pcs'] ?? 'N/A'}'),
+                                                                Text(
+                                                                    'Contents per Case: ${item['detailedData']['contents_case'] ?? 'N/A'}'),
+                                                              ],
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ]
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      },
+                                    );
+                                  },
+                                )
+                              : Center(
+                                  child: Text(
+                                    'Select a product to see inventory.',
+                                    style: TextStyle(
+                                        fontSize: 14, color: Colors.black),
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              )

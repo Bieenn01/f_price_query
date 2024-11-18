@@ -1,8 +1,11 @@
 import 'package:f_price_query/formatdate.dart';
+import 'package:f_price_query/inventoryProduct.dart';
 import 'package:flutter/material.dart';
 import 'package:mysql1/mysql1.dart'; // Required for MySQL operations
-import 'mysql.dart'; // Import the Mysql class
+import 'sql/mysql.dart'; // Import the Mysql class
 import 'package:intl/intl.dart'; // Import the intl package for date formatting
+
+import 'package:f_price_query/sql/mysql_services.dart';
 
 class PriceQuery extends StatefulWidget {
   @override
@@ -10,7 +13,7 @@ class PriceQuery extends StatefulWidget {
 }
 
 class _PriceQueryState extends State<PriceQuery> {
-  final Mysql mysql = Mysql(); // Instance of the Mysql class
+  final MysqlService mysql = MysqlService(); // Instance of the Mysql class
 
   List<String> clientSuggestions = [];
   List<String> productSuggestions = [];
@@ -68,9 +71,6 @@ class _PriceQueryState extends State<PriceQuery> {
       return []; // Return empty list if an error occurs
     }
   }
-
- 
-
 
   @override
   Widget build(BuildContext context) {
@@ -367,160 +367,82 @@ class _PriceQueryState extends State<PriceQuery> {
                 ),
               ),
               const Divider(),
-
               // Inventory section only shown after selecting both client and product
               AbsorbPointer(
-  absorbing: !(isClientSelected && selectedProduct.isNotEmpty),
-  child: Opacity(
-    opacity: (isClientSelected && selectedProduct.isNotEmpty) ? 1.0 : 0.5,
-    child: Tooltip(
-      message: (isClientSelected && selectedProduct.isNotEmpty)
-          ? ""
-          : "Please select both a client and product",
-      child: SingleChildScrollView(
-        // Make the entire content scrollable
-        child: Padding(
-          padding: const EdgeInsets.all(8.0), // Add padding around the InputDecorator
-          child: InputDecorator(
-            decoration: InputDecoration(
-              labelText: 'Inventory',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            child: selectedProduct.isNotEmpty
-                ? FutureBuilder<List<Map<String, dynamic>>>( 
-                    future: fetchInventoryData(selectedClient, selectedProduct),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return Center(child: CircularProgressIndicator());
-                      }
-
-                      if (snapshot.hasError) {
-                        return Center(child: Text('Error fetching inventory data.'));
-                      }
-
-                      if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                        return Center(child: Text('No inventory found.'));
-                      }
-
-                      var inventoryItems = snapshot.data!;
-
-                      return ListView.builder(
-                        shrinkWrap: true, // Make the ListView shrinkable
-                        physics: NeverScrollableScrollPhysics(), // Prevent ListView from scrolling itself
-                        itemCount: inventoryItems.length,
-                        itemBuilder: (context, index) {
-                          var item = inventoryItems[index];
-
-                          return Card(
-                            elevation: 3,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                absorbing: !(isClientSelected && selectedProduct.isNotEmpty),
+                child: Opacity(
+                  opacity: (isClientSelected && selectedProduct.isNotEmpty)
+                      ? 1.0
+                      : 0.5,
+                  child: Tooltip(
+                    message: (isClientSelected && selectedProduct.isNotEmpty)
+                        ? ""
+                        : "Please select both a client and product",
+                    child: SingleChildScrollView(
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: InputDecorator(
+                          decoration: InputDecoration(
+                            labelText: 'Inventory',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                            margin: EdgeInsets.symmetric(vertical: 8),
-                            child: ExpansionTile(
-                              title: Text(
-                                item['product_name'], // Product Name
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.blue,
-                                ),
-                              ),
-                              leading: Icon(Icons.inventory, color: Colors.blue),
-                              onExpansionChanged: (expanded) async {
-                                if (expanded) {
-                                  print('Tile is opened: ${item['product_name']}');
+                          ),
+                          child: selectedProduct.isNotEmpty
+                              ? FutureBuilder<List<Map<String, dynamic>>>(
+                                  future: fetchInventoryData(
+                                      selectedClient, selectedProduct),
+                                  builder: (context, snapshot) {
+                                    if (snapshot.connectionState ==
+                                        ConnectionState.waiting) {
+                                      return Center(
+                                          child: CircularProgressIndicator());
+                                    }
+                                    if (snapshot.hasError) {
+                                      return Center(
+                                          child: Text(
+                                              'Error fetching inventory data.'));
+                                    }
 
-                                  // Get detailed inventory data when expanded
-                                  var inventoryId = item['id']; // Assuming you have an 'inventory_id'
-                                  var clientName = selectedClient; // Using the selected client name
-                                  
-                                  // Fetch detailed data
-                                  var detailedData = await mysql.getDetailedInventoryData(inventoryId, clientName);
+                                    if (!snapshot.hasData ||
+                                        snapshot.data!.isEmpty) {
+                                      return Center(
+                                          child: Text('No inventory found.'));
+                                    }
 
-                                  if (detailedData.isNotEmpty) {
-                                    print('Detailed inventory data for ${item['product_name']}:');
-                                    print(detailedData);
-                                  } else {
-                                    print('No detailed data found.');
-                                  }
-                                  // Optionally, display this information in the UI (e.g., in a dialog or a bottom sheet)
-                                  // For example, showing the SQL query result in a simple dialog:
-                                  showDialog(
-                                    context: context,
-                                    builder: (BuildContext context) {
-                                      return AlertDialog(
-                                        title: Text('Detailed Inventory Data'),
-                                        content: SingleChildScrollView(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text('Product: ${detailedData['name'] ?? 'N/A'}'),
-                                              Text('Contents Box: ${detailedData['contents_box'] ?? 'N/A'}'),
-                                              Text('Expiry Date: ${detailedData['expiry_date'] ?? 'N/A'}'),
-                                              Text('Price Box: ${detailedData['price_box'] ?? 'N/A'}'),
-                                              Text('FTP Path: ${detailedData['path'] ?? 'N/A'}'),
-                                              Text('On-hand Quantity (pcs): ${detailedData['onhand_quantity_pcs'] ?? 'N/A'}'),
-                                              Text('Contents per Case: ${detailedData['contents_case'] ?? 'N/A'}'),
-                                            ],
-                                          ),
-                                        ),
-                                        actions: [
-                                          TextButton(
-                                            child: Text('Close'),
-                                            onPressed: () => Navigator.of(context).pop(),
-                                          ),
-                                        ],
-                                      );
-                                    },
-                                  );
-                                } else {
-                                  print('Tile is closed: ${item['product_name']}');
-                                }
-                              },
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.all(8.0),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Received on: ${formatDate(item['receive_datetime'])}',
-                                        style: TextStyle(fontSize: 14),
-                                      ),
-                                      SizedBox(height: 6),
-                                      Text(
-                                        'Type: ${item['type']}',
-                                        style: TextStyle(fontSize: 14),
-                                      ),
-                                      SizedBox(height: 6),
-                                    ],
+                                    var inventoryItems = snapshot.data!;
+
+                                    return ListView.builder(
+                                      shrinkWrap: true,
+                                      physics: NeverScrollableScrollPhysics(),
+                                      itemCount: inventoryItems.length,
+                                      itemBuilder: (context, index) {
+                                        var item = inventoryItems[index];
+
+                                        return InventoryExpansionTile(
+                                          item: item,
+                                          selectedClient: selectedClient,
+                                          onDetailDataFetched: (detailedData) {
+                                            // Handle the fetched data (optional)
+                                          },
+                                        );
+                                      },
+                                    );
+                                  },
+                                )
+                              : Center(
+                                  child: Text(
+                                    'Select a product to see inventory.',
+                                    style: TextStyle(
+                                        fontSize: 14, color: Colors.black),
                                   ),
                                 ),
-                              ],
-                            ),
-                          );
-                        },
-                      );
-                    },
-                  )
-                : Center(
-                    child: Text(
-                      'Select a product to see inventory.',
-                      style: TextStyle(fontSize: 14, color: Colors.black),
+                        ),
+                      ),
                     ),
                   ),
-          ),
-        ),
-      ),
-    ),
-  ),
-)
-
-
-
+                ),
+              )
             ],
           ),
         ),
