@@ -419,7 +419,7 @@ class _PriceQueryState extends State<PriceQuery> {
                                       itemBuilder: (context, index) {
                                         var item = inventoryItems[index];
 
-                                        return InventoryExpansionTile(
+                                        return InventoryDetailCard(
                                           item: item,
                                           selectedClient: selectedClient,
                                           onDetailDataFetched: (detailedData) {
